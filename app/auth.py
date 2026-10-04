@@ -1,4 +1,3 @@
-
 """
 Authentication and authorization helpers for Email Permutation Studio.
 
@@ -14,7 +13,7 @@ Security model:
 - State-changing authenticated requests also need the session's CSRF token.
 """
 
-from __future__ import annotations
+from __future__ annotations
 
 import hashlib
 import hmac
@@ -38,11 +37,16 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = Path(os.getenv("DATABASE_PATH", str(DATA_DIR / "emailtool.db")))
 
-ADMIN_EMAILS = [e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "arshad.s@igts.io,dev.shahidshaikh@gmail.com").split(",") if e.strip()]
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "pass1234")
-# Backward-compatible alias: other modules in the existing app import ADMIN_EMAIL.
-# Keep it pointing to the first configured administrator.
-ADMIN_EMAIL = ADMIN_EMAILS[0] if ADMIN_EMAILS else ""
+ADMIN_EMAILS = {
+    "dev.shahidshaikh@gmail.com",
+    "arshad.s@igts.io",
+}
+if env_admin := os.getenv("ADMIN_EMAIL"):
+    ADMIN_EMAILS.add(env_admin.strip().lower())
+if env_admins := os.getenv("ADMIN_EMAILS"):
+    ADMIN_EMAILS.update(e.strip().lower() for e in env_admins.split(",") if e.strip())
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin@2026!ChangeMe")
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "7"))
 # In production (Netlify frontend + Render API), the browser must be allowed
 # to send the secure session cookie across the two HTTPS sites.
@@ -142,9 +146,7 @@ def init_db() -> None:
             """
         )
 
-        # Configure all administrator accounts listed in ADMIN_EMAILS.
-        # Example: ADMIN_EMAILS=arshad.s@igts.io,dev.shahidshaikh@gmail.com
-        password_hash, salt = hash_password(ADMIN_PASSWORD)
+        # Seed or promote administrator accounts defined in ADMIN_EMAILS.
         for admin_email in ADMIN_EMAILS:
             existing = db.execute(
                 "SELECT id FROM users WHERE email = ?",
@@ -161,6 +163,7 @@ def init_db() -> None:
                     (admin_email,),
                 )
             else:
+                password_hash, salt = hash_password(ADMIN_PASSWORD)
                 db.execute(
                     """
                     INSERT INTO users
@@ -168,7 +171,12 @@ def init_db() -> None:
                          is_active, is_approved, created_at)
                     VALUES (?, ?, ?, 'admin', 1, 1, ?)
                     """,
-                    (admin_email, password_hash, salt, utc_string()),
+                    (
+                        admin_email,
+                        password_hash,
+                        salt,
+                        utc_string(),
+                    ),
                 )
 
 
@@ -182,8 +190,11 @@ def is_gmail(email: str) -> bool:
 
 
 def validate_email(email: str) -> Optional[str]:
-    if not normalize_email(email):
+    normalized = normalize_email(email)
+    if not normalized:
         return "Email address is required."
+    if normalized in ADMIN_EMAILS:
+        return None
     if not is_gmail(email):
         return "Please use a valid Gmail address ending in @gmail.com."
     return None
