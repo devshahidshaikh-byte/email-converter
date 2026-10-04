@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Generate structured email address candidates from names and domains.">
+  <meta name="theme-color" content="#0b1220">
+  <title>Email Pattern Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Email Pattern Generator home">
+        <span class="brand-mark">@</span>
+        <span class="brand-copy">
+          <strong>Email Pattern Generator</strong>
+          <small>Simple. Fast. Professional.</small>
+        </span>
+      </a>
+
+      <nav class="top-actions" aria-label="Utility navigation">
+        <span class="account-pill" id="accountPill">Checking account…</span>
+        <a class="admin-link hidden" id="adminLink" href="/admin.html">Admin dashboard</a>
+        <button class="logout-btn" id="logoutBtn" type="button">Sign out</button>
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Switch theme" title="Switch theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.7 15.2A8.6 8.6 0 0 1 8.8 3.3 8.7 8.7 0 1 0 20.7 15.2Z"></path></svg>
+        </button>
+        <a class="docs-link" href="#" id="apiDocsLink" target="_blank" rel="noopener">API</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Email research workspace</div>
+          <h1>Find the right email patterns, <span>without the complexity.</span></h1>
+          <p>Enter a person's name and company domain. The engine instantly creates the most common email address formats for you.</p>
+          <div class="trust-row">
+            <span><i>✓</i> 50+ built-in formats</span>
+            <span><i>✓</i> Instant results</span>
+            <span><i>✓</i> No email sending</span>
+          </div>
+        </div>
+        <div class="hero-orbit" aria-hidden="true">
+          <div class="orbit-ring ring-one"></div>
+          <div class="orbit-ring ring-two"></div>
+          <div class="hero-card-float float-one">john.smith@company.com</div>
+          <div class="hero-card-float float-two">jsmith@company.com</div>
+          <div class="hero-center">@</div>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Email generator">
+        <div class="generator-card card">
+          <div class="card-heading">
+            <div>
+              <span class="step-label">STEP 01</span>
+              <h2>Enter details</h2>
+              <p>Just the information needed to generate candidates.</p>
+            </div>
+            <button class="clear-btn" id="clearBtn" type="button">Clear</button>
+          </div>
+
+          <form id="generatorForm" novalidate>
+            <div class="field-grid">
+              <label class="field">
+                <span>First name</span>
+                <div class="input-wrap">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"></path></svg>
+                  <input id="firstName" name="first_name" type="text" placeholder="John" autocomplete="given-name" maxlength="100" required>
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Last name</span>
+                <div class="input-wrap">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"></path></svg>
+                  <input id="lastName" name="last_name" type="text" placeholder="Smith" autocomplete="family-name" maxlength="100" required>
+                </div>
+              </label>
+            </div>
+
+            <label class="field domain-field">
+              <span>Company domain</span>
+              <div class="input-wrap domain-wrap">
+                <span class="at-symbol">@</span>
+                <input id="domainInput" type="text" placeholder="company.com" autocomplete="off" maxlength="253" required>
+                <button class="add-domain-btn" id="addDomainBtn" type="button">Add</button>
+              </div>
+              <small>Enter one domain, or add several domains if you are checking multiple companies.</small>
+            </label>
+
+            <div class="domain-list" id="domainTags" aria-live="polite"></div>
+
+            <div class="generate-row">
+              <div class="generate-note">
+                <span class="secure-icon">✓</span>
+                <span>Generation only. Nothing is sent or emailed.</span>
+              </div>
+              <button class="generate-btn" id="generateBtn" type="submit">
+                <span class="btn-label">Generate emails</span>
+                <span class="spinner" aria-hidden="true"></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"></path></svg>
+              </button>
+            </div>
+            <div id="formStatus" class="form-status" aria-live="polite"></div>
+          </form>
+        </div>
+
+        <aside class="quick-card card">
+          <div class="quick-icon">✦</div>
+          <span class="step-label">AUTOMATIC</span>
+          <h3>We handle the patterns</h3>
+          <p>You don't need to choose patterns manually. The engine checks common formats automatically.</p>
+          <div class="quick-list">
+            <div><span>01</span><p>First + last name</p></div>
+            <div><span>02</span><p>Initial + surname</p></div>
+            <div><span>03</span><p>First name + initial</p></div>
+            <div><span>04</span><p>Other common formats</p></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="results-section" id="resultsSection" aria-label="Generated results">
+        <div class="results-card card">
+          <div class="results-header">
+            <div class="results-title">
+              <div class="results-icon">@</div>
+              <div>
+                <span class="step-label">STEP 02</span>
+                <h2>Generated results</h2>
+                <p id="resultMeta">Your results will appear here.</p>
+              </div>
+            </div>
+            <div class="results-actions">
+              <button class="secondary-btn" id="copyAllBtn" type="button" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"></path></svg>
+                Copy all
+              </button>
+              <div class="export-wrap">
+                <button class="secondary-btn" id="exportBtn" type="button" disabled>
+                  Export
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+                </button>
+                <div class="export-menu hidden" id="exportMenu">
+                  <button type="button" data-export="txt">Text file <small>.txt</small></button>
+                  <button type="button" data-export="csv">CSV spreadsheet <small>.csv</small></button>
+                  <button type="button" data-export="xlsx">Excel workbook <small>.xlsx</small></button>
+                  <button type="button" data-export="json">JSON data <small>.json</small></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-bar">
+            <div class="stat"><span class="stat-value" id="totalStat">0</span><span class="stat-label">Candidates</span></div>
+            <div class="stat"><span class="stat-value" id="domainStat">0</span><span class="stat-label">Domains</span></div>
+            <div class="stat"><span class="stat-value" id="visibleStat">0</span><span class="stat-label">Showing</span></div>
+            <div class="stats-spacer"></div>
+            <label class="results-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+              <input id="searchInput" type="search" placeholder="Search results" disabled>
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email address</th>
+                  <th>Format</th>
+                  <th>Domain</th>
+                  <th class="action-head"></th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody">
+                <tr class="empty-row">
+                  <td colspan="4">
+                    <div class="empty-state">
+                      <div class="empty-state-icon"><span>@</span></div>
+                      <strong>No results yet</strong>
+                      <p>Enter a name and domain above, then click <b>Generate emails</b>.</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="results-footer">
+            <span id="pageMeta">Ready when you are.</span>
+            <div class="pagination">
+              <button class="page-btn" id="prevBtn" type="button" disabled aria-label="Previous page">‹</button>
+              <button class="page-btn" id="nextBtn" type="button" disabled aria-label="Next page">›</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="private-access-section" id="privateAccessSection">
+        <div class="private-banner private-locked" id="privateLocked">
+          <div class="private-lock-icon">◆</div>
+          <div>
+            <span class="step-label">ADMIN-APPROVED</span>
+            <h2>Private bulk workspace</h2>
+            <p>This feature is restricted to Gmail accounts selected by the administrator.</p>
+          </div>
+          <span class="private-badge">Locked</span>
+        </div>
+        <div class="private-banner private-open hidden" id="privateOpen">
+          <div class="private-lock-icon">✓</div>
+          <div>
+            <span class="step-label">PRIVATE ACCESS ENABLED</span>
+            <h2>Your account has private access</h2>
+            <p>You can use the server-side bulk CSV workspace below.</p>
+          </div>
+          <span class="private-badge open">Approved</span>
+        </div>
+      </section>
+
+      <section class="bulk-section hidden" id="bulkSection">
+        <div class="bulk-card card">
+          <div class="bulk-copy">
+            <div class="bulk-icon">↥</div>
+            <div>
+              <span class="step-label">OPTIONAL</span>
+              <h2>Have a list?</h2>
+              <p>Process up to 250 people at once using a CSV with <code>first_name,last_name,domain</code>.</p>
+            </div>
+          </div>
+          <div class="bulk-actions">
+            <label class="file-btn" for="csvFile">Choose CSV</label>
+            <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+            <span id="fileName" class="file-name">No file selected</span>
+            <button id="bulkBtn" class="secondary-btn" type="button">Process list</button>
+          </div>
+          <div id="bulkStatus" class="bulk-status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="info-grid">
+        <article class="info-card">
+          <span class="info-number">01</span>
+          <h3>Simple by design</h3>
+          <p>Only the inputs that matter are shown. Advanced pattern rules stay behind the scenes.</p>
+        </article>
+        <article class="info-card">
+          <span class="info-number">02</span>
+          <h3>Built for real workflows</h3>
+          <p>Search, copy individual addresses, copy all results, or export the complete list.</p>
+        </article>
+        <article class="info-card">
+          <span class="info-number">03</span>
+          <h3>Privacy-minded</h3>
+          <p>The interface does not send emails or verify inboxes. It only generates address-format candidates.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div><strong>Email Pattern Generator</strong><span>Professional email-format candidate generation.</span></div>
+      <div><span>Runs on your FastAPI backend</span><a href="#" id="apiDocsLink" target="_blank" rel="noopener">Developer API</a></div>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/app.js"></script>
+  <script>document.getElementById("apiDocsLink")?.addEventListener("click", e => { e.preventDefault(); window.open(apiUrl("/docs"), "_blank"); });</script>
+</body>
+</html>

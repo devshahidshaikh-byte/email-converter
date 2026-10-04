@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in · Email Permutation Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/auth.css">
+</head>
+<body class="auth-page">
+  <div class="auth-shell">
+    <section class="auth-brand">
+      <div class="logo-mark">@</div>
+      <h1>Your email research workspace.</h1>
+      <p>Sign in to generate email-format candidates, save your workflow locally, and access features that your administrator has approved.</p>
+      <ul class="feature-list">
+        <li><b>✓</b> Secure account-based access</li>
+        <li><b>✓</b> Private features for selected Gmail accounts</li>
+        <li><b>✓</b> Admin-controlled user management</li>
+        <li><b>✓</b> No email sending or mailbox verification</li>
+      </ul>
+    </section>
+
+    <section class="auth-card">
+      <h2 id="title">Welcome back</h2>
+      <p class="sub" id="subtitle">Sign in with your Gmail account to continue.</p>
+
+      <div class="tabs">
+        <button id="loginTab" class="active" type="button">Sign in</button>
+        <button id="registerTab" type="button">Create account</button>
+      </div>
+
+      <form id="authForm" class="auth-form">
+        <div class="auth-field">
+          <label for="email">Gmail address</label>
+          <input id="email" type="email" placeholder="you@gmail.com" autocomplete="email" required>
+        </div>
+
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="At least 8 characters" autocomplete="current-password" required minlength="8">
+        </div>
+
+        <div id="message" class="auth-message"></div>
+        <button id="submitBtn" class="primary-btn" type="submit">Sign in</button>
+      </form>
+
+      <p class="small-note">
+        New accounts can use the standard generator. Private features are available only to accounts approved by the administrator.
+      </p>
+    </section>
+  </div>
+
+<script src="/config.js"></script>
+<script>
+const API_BASE_URL = (window.APP_CONFIG?.API_BASE_URL || "").replace(/\/$/, "");
+const apiUrl = path => `${API_BASE_URL}${path}`;
+const $ = id => document.getElementById(id);
+let mode = "login";
+
+function setMode(next) {
+  mode = next;
+  $("loginTab").classList.toggle("active", mode === "login");
+  $("registerTab").classList.toggle("active", mode === "register");
+  $("title").textContent = mode === "login" ? "Welcome back" : "Create your account";
+  $("subtitle").textContent = mode === "login"
+    ? "Sign in with your Gmail account to continue."
+    : "Create a secure Gmail account for the workspace.";
+  $("submitBtn").textContent = mode === "login" ? "Sign in" : "Create account";
+  $("password").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("message").textContent = "";
+  $("message").className = "auth-message";
+}
+
+function showMessage(text, type = "error") {
+  $("message").textContent = text;
+  $("message").className = "auth-message " + type;
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const button = $("submitBtn");
+  button.disabled = true;
+  showMessage("Please wait…", "success");
+
+  try {
+    const response = await fetch(apiUrl(mode === "login" ? "/api/auth/login" : "/api/auth/register"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: $("email").value.trim(),
+        password: $("password").value
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Authentication failed.");
+
+    // Store the CSRF token in sessionStorage. It is not a password or session cookie.
+    sessionStorage.setItem("csrf_token", data.csrf_token);
+    sessionStorage.setItem("user", JSON.stringify(data.user));
+
+    showMessage("Login successful. Opening workspace…", "success");
+    window.location.href = data.user.role === "admin" ? "/admin" : "/";
+  } catch (error) {
+    showMessage(error.message || "Could not sign in.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+$("loginTab").addEventListener("click", () => setMode("login"));
+$("registerTab").addEventListener("click", () => setMode("register"));
+$("authForm").addEventListener("submit", submitAuth);
+
+// If the browser already has a valid session, do not make the user log in again.
+fetch(apiUrl("/api/auth/me")).then(async response => {
+  if (!response.ok) return;
+  const data = await response.json();
+  sessionStorage.setItem("csrf_token", data.csrf_token);
+  sessionStorage.setItem("user", JSON.stringify(data.user));
+  window.location.href = data.user.role === "admin" ? "/admin" : "/";
+}).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard · Email Permutation Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="admin-logo"><span>@</span><div><strong>EPS Admin</strong><small>Control center</small></div></div>
+    <nav>
+      <button class="nav-item active" data-tab="overview">Overview</button>
+      <button class="nav-item" data-tab="users">Users</button>
+      <button class="nav-item" data-tab="private">Private access</button>
+      <button class="nav-item" data-tab="activity">Login tracking</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <a href="/index.html">← Open workspace</a>
+      <button id="logoutBtn">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div><span class="eyebrow">ADMINISTRATOR</span><h1 id="pageTitle">Overview</h1></div>
+      <div class="admin-user"><span class="status-dot"></span><span id="adminEmail">Loading…</span></div>
+    </header>
+
+    <section id="overview" class="tab-panel active">
+      <div class="stat-grid">
+        <div class="stat-card"><span>Registered users</span><strong id="statUsers">0</strong><small>Normal user accounts</small></div>
+        <div class="stat-card"><span>Approved users</span><strong id="statApproved">0</strong><small>Private feature access</small></div>
+        <div class="stat-card"><span>Active sessions</span><strong id="statSessions">0</strong><small>Currently valid sessions</small></div>
+        <div class="stat-card"><span>Approved Gmail</span><strong id="statEmails">0</strong><small>Allowlist entries</small></div>
+      </div>
+      <div class="panel account-settings-panel">
+        <div class="panel-heading"><div><h2>Administrator account</h2><p>Change the initial development Gmail or password here. This updates the database and survives restarts.</p></div></div>
+        <form id="adminAccountForm" class="admin-account-form">
+          <input id="adminAccountEmail" type="email" placeholder="admin@gmail.com" required>
+          <input id="adminNewPassword" type="password" placeholder="New password (leave blank to keep current)">
+          <button class="primary-btn" type="submit">Save account</button>
+        </form>
+        <div id="adminAccountMessage" class="inline-message"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading"><div><h2>How access works</h2><p>Keep your public generator and private features separated.</p></div></div>
+        <div class="steps">
+          <div><b>01</b><h3>User registers</h3><p>Only Gmail addresses can create an account.</p></div>
+          <div><b>02</b><h3>Admin approves</h3><p>Add a Gmail address to the private allowlist.</p></div>
+          <div><b>03</b><h3>Private access</h3><p>That account immediately receives private access.</p></div>
+          <div><b>04</b><h3>Track activity</h3><p>Successful logins and admin actions appear in the audit log.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="users" class="tab-panel">
+      <div class="panel">
+        <div class="panel-heading"><div><h2>User management</h2><p>View, approve, disable, enable, or delete accounts.</p></div><button class="refresh-btn" data-refresh="users">Refresh</button></div>
+        <div class="table-scroll"><table><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Private</th><th>Created</th><th>Last login</th><th>Logins</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="private" class="tab-panel">
+      <div class="panel">
+        <div class="panel-heading"><div><h2>Private Gmail allowlist</h2><p>Only Gmail addresses added here receive private access.</p></div></div>
+        <form id="allowForm" class="allow-form">
+          <input id="allowEmail" type="email" placeholder="selected.user@gmail.com" required>
+          <button class="primary-btn" type="submit">Add Gmail</button>
+        </form>
+        <div id="allowMessage" class="inline-message"></div>
+        <div class="table-scroll"><table><thead><tr><th>Gmail address</th><th>Added by</th><th>Added</th><th></th></tr></thead><tbody id="allowBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="activity" class="tab-panel">
+      <div class="panel">
+        <div class="panel-heading"><div><h2>Login & security activity</h2><p>Latest authentication and administrator events.</p></div><button class="refresh-btn" data-refresh="audit">Refresh</button></div>
+        <div class="table-scroll"><table><thead><tr><th>Time</th><th>Event</th><th>User</th><th>Details</th><th>IP</th></tr></thead><tbody id="auditBody"></tbody></table></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast"></div>
+
+<script src="/config.js"></script>
+<script>
+const API_BASE_URL = (window.APP_CONFIG?.API_BASE_URL || "").replace(/\/$/, "");
+const apiUrl = path => `${API_BASE_URL}${path}`;
+const $ = id => document.getElementById(id);
+const csrf = () => sessionStorage.getItem("csrf_token") || "";
+
+async function api(path, options = {}) {
+  const headers = {
+    ...(options.body ? {"Content-Type":"application/json"} : {}),
+    ...(options.method && options.method !== "GET" ? {"X-CSRF-Token": csrf()} : {}),
+    ...(options.headers || {})
+  };
+  const response = await fetch(apiUrl(path), { ...options, headers, credentials: "include" });
+  if (response.status === 401 || response.status === 403) {
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      sessionStorage.clear();
+      location.href = "/login.html";
+      throw new Error("Your session expired.");
+    }
+    throw new Error(data.detail || "Permission denied.");
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Request failed.");
+  return data;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+}
+function date(value) {
+  if (!value) return "Never";
+  return new Date(value).toLocaleString();
+}
+function toast(message) {
+  $("toast").textContent = message;
+  $("toast").classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => $("toast").classList.remove("show"), 2400);
+}
+
+async function loadSummary() {
+  const data = await api("/api/admin/summary");
+  $("adminEmail").textContent = data.admin_email;
+  $("statUsers").textContent = data.total_users;
+  $("statApproved").textContent = data.approved_users;
+  $("statSessions").textContent = data.active_sessions;
+  $("statEmails").textContent = data.approved_emails;
+}
+
+async function loadUsers() {
+  const data = await api("/api/admin/users");
+  $("usersBody").innerHTML = data.users.map(u => `
+    <tr>
+      <td><strong>${escapeHtml(u.email)}</strong></td>
+      <td><span class="badge ${u.role}">${u.role}</span></td>
+      <td><span class="badge ${u.is_active ? "active":"disabled"}">${u.is_active ? "Active":"Disabled"}</span></td>
+      <td>${u.is_approved ? '<span class="yes">Approved</span>' : '<span class="no">No</span>'}</td>
+      <td>${date(u.created_at)}</td>
+      <td>${date(u.last_login_at)}</td>
+      <td>${u.login_count}</td>
+      <td class="actions">
+        ${u.role === "admin" ? '<span class="muted">Protected</span>' : `
+          ${u.is_approved ? "" : `<button class="mini approve" onclick="approveUser(${u.id})">Approve</button>`}
+          <button class="mini" onclick="toggleUser(${u.id}, ${u.is_active})">${u.is_active ? "Disable":"Enable"}</button>
+          <button class="mini danger" onclick="deleteUser(${u.id})">Delete</button>
+        `}
+      </td>
+    </tr>
+  `).join("") || '<tr><td colspan="8" class="empty">No users yet.</td></tr>';
+}
+
+async function loadAllowlist() {
+  const data = await api("/api/admin/approved-emails");
+  $("allowBody").innerHTML = data.emails.map(item => `
+    <tr>
+      <td><strong>${escapeHtml(item.email)}</strong></td>
+      <td>${escapeHtml(item.added_by)}</td>
+      <td>${date(item.created_at)}</td>
+      <td><button class="mini danger" onclick="removeAllow(${item.id})">Remove</button></td>
+    </tr>
+  `).join("") || '<tr><td colspan="4" class="empty">No private Gmail addresses have been added.</td></tr>';
+}
+
+async function loadAudit() {
+  const data = await api("/api/admin/audit");
+  $("auditBody").innerHTML = data.events.map(item => `
+    <tr>
+      <td>${date(item.created_at)}</td>
+      <td><span class="event">${escapeHtml(item.event)}</span></td>
+      <td>${escapeHtml(item.user_email || "Deleted user")}</td>
+      <td>${escapeHtml(item.details || "—")}</td>
+      <td>${escapeHtml(item.ip_address || "—")}</td>
+    </tr>
+  `).join("") || '<tr><td colspan="5" class="empty">No activity recorded yet.</td></tr>';
+}
+
+async function approveUser(id) {
+  if (!confirm("Give this user private access?")) return;
+  try { await api(`/api/admin/users/${id}/approve`, {method:"POST"}); toast("Private access enabled."); await refreshAll(); }
+  catch(e) { toast(e.message); }
+}
+async function toggleUser(id, active) {
+  try {
+    await api(`/api/admin/users/${id}/${active ? "disable":"enable"}`, {method:"POST"});
+    toast(active ? "User disabled." : "User enabled.");
+    await refreshAll();
+  } catch(e) { toast(e.message); }
+}
+async function deleteUser(id) {
+  if (!confirm("Permanently delete this user and their sessions? This cannot be undone.")) return;
+  try { await api(`/api/admin/users/${id}`, {method:"DELETE"}); toast("User deleted."); await refreshAll(); }
+  catch(e) { toast(e.message); }
+}
+async function removeAllow(id) {
+  if (!confirm("Remove this Gmail from private access?")) return;
+  try { await api(`/api/admin/approved-emails/${id}`, {method:"DELETE"}); toast("Private access removed."); await refreshAll(); }
+  catch(e) { toast(e.message); }
+}
+
+async function refreshAll() {
+  try {
+    await Promise.all([loadSummary(), loadUsers(), loadAllowlist(), loadAudit()]);
+  } catch(e) {
+    toast(e.message);
+  }
+}
+
+document.querySelectorAll(".nav-item").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".nav-item").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(x => x.classList.remove("active"));
+    button.classList.add("active");
+    const tab = button.dataset.tab;
+    $(tab).classList.add("active");
+    $("pageTitle").textContent = button.textContent;
+    if (tab === "activity") loadAudit();
+  });
+});
+
+document.querySelectorAll("[data-refresh]").forEach(button => {
+  button.addEventListener("click", refreshAll);
+});
+
+$("allowForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await api("/api/admin/approved-emails", {
+      method:"POST",
+      body:JSON.stringify({email:$("allowEmail").value.trim()})
+    });
+    $("allowEmail").value = "";
+    $("allowMessage").textContent = "Gmail added to private access.";
+    toast("Private Gmail added.");
+    await refreshAll();
+  } catch(e) {
+    $("allowMessage").textContent = e.message;
+  }
+});
+
+$("adminAccountForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const message = $("adminAccountMessage");
+  message.textContent = "Saving…";
+  try {
+    await api("/api/admin/account", {
+      method: "PUT",
+      body: JSON.stringify({
+        email: $("adminAccountEmail").value.trim(),
+        new_password: $("adminNewPassword").value || null
+      })
+    });
+    $("adminNewPassword").value = "";
+    message.textContent = "Administrator account updated successfully.";
+    toast("Admin account updated.");
+    await loadSummary();
+  } catch (e) {
+    message.textContent = e.message;
+  }
+});
+
+$("logoutBtn").addEventListener("click", async () => {
+  try { await api("/api/auth/logout", {method:"POST"}); } catch(e) {}
+  sessionStorage.clear();
+  location.href="/login";
+});
+
+(async function start() {
+  try {
+    const me = await api("/api/auth/me");
+    if (me.user.role !== "admin") { location.href="/index.html"; return; }
+    sessionStorage.setItem("csrf_token", me.csrf_token);
+    sessionStorage.setItem("user", JSON.stringify(me.user));
+    $("adminAccountEmail").value = me.user.email;
+    await refreshAll();
+  } catch(e) {
+    location.href="/login";
+  }
+})();
+</script>
+</body>
+</html>
