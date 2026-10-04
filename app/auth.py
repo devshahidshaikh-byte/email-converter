@@ -1,3 +1,4 @@
+
 """
 Authentication and authorization helpers for Email Permutation Studio.
 
@@ -13,7 +14,7 @@ Security model:
 - State-changing authenticated requests also need the session's CSRF token.
 """
 
-from __future__ annotations
+from __future__ import annotations
 
 import hashlib
 import hmac
@@ -37,15 +38,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = Path(os.getenv("DATABASE_PATH", str(DATA_DIR / "emailtool.db")))
 
-ADMIN_EMAILS = {
-    "dev.shahidshaikh@gmail.com",
-    "arshad.s@igts.io",
-}
-if env_admin := os.getenv("ADMIN_EMAIL"):
-    ADMIN_EMAILS.add(env_admin.strip().lower())
-if env_admins := os.getenv("ADMIN_EMAILS"):
-    ADMIN_EMAILS.update(e.strip().lower() for e in env_admins.split(",") if e.strip())
-
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "dev.shahidshaikh@gmail.com").strip().lower()
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin@2026!ChangeMe")
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "7"))
 # In production (Netlify frontend + Render API), the browser must be allowed
@@ -146,21 +139,29 @@ def init_db() -> None:
             """
         )
 
-        # Seed or promote administrator accounts defined in ADMIN_EMAILS.
-        for admin_email in ADMIN_EMAILS:
+        # Seed the first administrator only when the database has no admin.
+        # After that, the admin can change their email/password from the
+        # dashboard without the old .env value creating another admin.
+        admin_exists = db.execute(
+            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+        ).fetchone()
+
+        if not admin_exists:
             existing = db.execute(
                 "SELECT id FROM users WHERE email = ?",
-                (admin_email,),
+                (ADMIN_EMAIL,),
             ).fetchone()
 
             if existing:
+                # The configured bootstrap email already belongs to a user.
+                # Promote it instead of creating a duplicate account.
                 db.execute(
                     """
                     UPDATE users
                     SET role = 'admin', is_active = 1, is_approved = 1
                     WHERE email = ?
                     """,
-                    (admin_email,),
+                    (ADMIN_EMAIL,),
                 )
             else:
                 password_hash, salt = hash_password(ADMIN_PASSWORD)
@@ -172,7 +173,7 @@ def init_db() -> None:
                     VALUES (?, ?, ?, 'admin', 1, 1, ?)
                     """,
                     (
-                        admin_email,
+                        ADMIN_EMAIL,
                         password_hash,
                         salt,
                         utc_string(),
@@ -190,11 +191,8 @@ def is_gmail(email: str) -> bool:
 
 
 def validate_email(email: str) -> Optional[str]:
-    normalized = normalize_email(email)
-    if not normalized:
+    if not normalize_email(email):
         return "Email address is required."
-    if normalized in ADMIN_EMAILS:
-        return None
     if not is_gmail(email):
         return "Please use a valid Gmail address ending in @gmail.com."
     return None
