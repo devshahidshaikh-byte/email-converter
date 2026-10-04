@@ -39,7 +39,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = Path(os.getenv("DATABASE_PATH", str(DATA_DIR / "emailtool.db")))
 
 ADMIN_EMAILS = [e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "arshad.s@igts.io,dev.shahidshaikh@gmail.com").split(",") if e.strip()]
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "pass123")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "pass1234")
 # Backward-compatible alias: other modules in the existing app import ADMIN_EMAIL.
 # Keep it pointing to the first configured administrator.
 ADMIN_EMAIL = ADMIN_EMAILS[0] if ADMIN_EMAILS else ""
